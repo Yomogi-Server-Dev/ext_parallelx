@@ -1,0 +1,85 @@
+name: Build ext_parallelx
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build:
+    if: startsWith(github.event.head_commit.message, '⚙️')
+    runs-on: ubuntu-22.04
+    name: Build & Test (PHP ${{ matrix.php }})
+    strategy:
+      matrix:
+        php: [8.2.29, 8.3.25]
+
+    env:
+      PHP_VERSION: ${{ matrix.php }}
+      CFLAGS: "-O3 -march=x86-64 -ftree-vectorize -funroll-loops -fomit-frame-pointer -pipe -flto"
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential autoconf bison re2c valgrind pkg-config libssl-dev
+
+      - name: Restore PHP build cache
+        uses: actions/cache@v4
+        id: php-build-cache
+        with:
+          path: ${{ github.workspace }}/php-${{ matrix.php }}
+          key: php-${{ matrix.php }}
+
+      - name: Get CPU cores
+        if: steps.php-build-cache.outputs.cache-hit != 'true'
+        uses: SimenB/github-actions-cpu-cores@v2
+        id: cpu-cores
+
+      - name: Download PHP source
+        if: steps.php-build-cache.outputs.cache-hit != 'true'
+        working-directory: /tmp
+        run: |
+          curl -L https://github.com/php/php-src/archive/refs/tags/php-${{ matrix.php }}.tar.gz | tar -xz
+
+      - name: Build PHP (ZTS)
+        if: steps.php-build-cache.outputs.cache-hit != 'true'
+        working-directory: /tmp/php-src-php-${{ matrix.php }}
+        run: |
+          ./buildconf --force
+          ./configure \
+            --disable-all \
+            --enable-cli \
+            --enable-zts \
+            --disable-debug \
+            --with-valgrind \
+            --prefix="${{ github.workspace }}/php-${{ matrix.php }}"
+          make -j ${{ steps.cpu-cores.outputs.count }} install
+
+      - name: Verify PHP build
+        run: $GITHUB_WORKSPACE/php-${{ matrix.php }}/bin/php -v
+
+      - name: Build ext_parallelx
+        run: |
+          export PHP=$GITHUB_WORKSPACE/php-${{ matrix.php }}
+          $PHP/bin/phpize
+          ./configure --with-php-config=$PHP/bin/php-config CC=gcc
+          make clean
+          make CC=gcc -j$(nproc)
+          make install
+          echo "extension=parallelx.so" >> $PHP/lib/php.ini
+          $PHP/bin/php -m
+
+      - name: Run PHPT tests
+        run: |
+          REPORT_EXIT_STATUS=1 NO_INTERACTION=1 TEST_PHP_ARGS="-m" make test
+
+      - name: Upload ext_parallelx artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ext_parallelx-${{ matrix.php }}
+          path: |
+            ${{ github.workspace }}/php-${{ matrix.php }}/lib/php/extensions/**/parallelx.so
+            ${{ github.workspace }}/php-${{ matrix.php }}/lib/php.ini
