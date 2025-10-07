@@ -24,7 +24,7 @@
 
 #define PARALLELX_VERSION "0.1.0"
 #define PARALLELX_MAX_WORKERS 64
-#define WORKER_TEMPLATE "/tmp/parallelx_worker_XXXXXX.php"
+#define WORKER_TEMPLATE "/var/tmp/parallelx_worker_XXXXXXphp"
 #define ENV_AUTLOAD "PARALLELX_AUTOLOAD"
 
 typedef struct px_worker {
@@ -238,7 +238,8 @@ static int spawn_workers(int count) {
     if (count <= 0 || count > PARALLELX_MAX_WORKERS) return -1;
     workers = (px_worker *) calloc(count, sizeof(px_worker));
     if (!workers) return -1;
-    for (int i = 0; i < count; ++i) {
+    int i;
+    for (i = 0; i < count; ++i) {
         int p2c[2], c2p[2];
         if (pipe(p2c) < 0) goto spawn_err;
         if (pipe(c2p) < 0) {
@@ -404,7 +405,6 @@ PHP_FUNCTION(parallelx_init) {
 
     if (spawn_workers((int) workers_z) != 0) {
         php_error_docref(NULL, E_WARNING, "parallelx: spawn_workers failed");
-        unlink(worker_script_path);
         RETURN_FALSE;
     }
 
@@ -427,8 +427,7 @@ PHP_FUNCTION(parallelx_register) {
         RETURN_FALSE;
     }
     char *token = registry_insert(source, bound_b64 ? bound_b64 : "");
-    RETVAL_STRING(token);
-    RETURN_EMPTY_STRING();
+    RETVAL_STRING(token); 
 }
 
 /* parallelx_submit_desc(descriptor_array, callable) */
@@ -694,7 +693,6 @@ PHP_FUNCTION(parallelx_shutdown) {
     px_initialized = 0;
 
     if (worker_script_path[0]) {
-        unlink(worker_script_path);
         worker_script_path[0] = '\0';
     }
     pending_node *pn = pending_head;
@@ -744,13 +742,35 @@ PHP_MINFO_FUNCTION(parallelx) {
     php_info_print_table_end();
 }
 
+ZEND_BEGIN_ARG_INFO_EX(arginfo_parallelx_init, 0, 0, 0)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_parallelx_register, 0, 0, 0)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_parallelx_submit_token, 0, 0, 2)
+    ZEND_ARG_CALLABLE_INFO(0, task, 0)
+    ZEND_ARG_CALLABLE_INFO(0, callback, 0)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_parallelx_submit_desc, 0, 0, 2)
+    ZEND_ARG_INFO(0, desc)
+    ZEND_ARG_CALLABLE_INFO(0, callback, 0)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_parallelx_poll, 0, 0, 0)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_parallelx_shutdown, 0, 0, 0)
+ZEND_END_ARG_INFO()
+
 const zend_function_entry parallelx_functions[] = {
-    PHP_FE(parallelx_init, NULL)
-    PHP_FE(parallelx_register, NULL)
-    PHP_FE(parallelx_submit_token, NULL)
-    PHP_FE(parallelx_submit_desc, NULL)
-    PHP_FE(parallelx_poll, NULL)
-    PHP_FE(parallelx_shutdown, NULL)
+    PHP_FE(parallelx_init, arginfo_parallelx_init)
+    PHP_FE(parallelx_register, arginfo_parallelx_register)
+    PHP_FE(parallelx_submit_token, arginfo_parallelx_submit_token)
+    PHP_FE(parallelx_submit_desc, arginfo_parallelx_submit_desc)
+    PHP_FE(parallelx_poll, arginfo_parallelx_poll)
+    PHP_FE(parallelx_shutdown, arginfo_parallelx_shutdown)
     PHP_FE_END
 };
 
