@@ -34,7 +34,7 @@ flowchart LR
     Pool -->|send result via pipe| A3
 ```
 
-## Example
+## 🧩 Example
 
 ```php
 public function onEnable(): void {
