@@ -1,9 +1,9 @@
-# 🚀 ext_parallelx
+# ext_parallelx
 
 ## 🧠 What is ext_parallelx?
 
 `ext_parallelx`はPocketMine-MPのために設計された  
-**マルチプロセス並列実行拡張**である
+**マルチプロセス並列実行拡張**
 
 従来の`AsyncTask`のように、単一プロセス内でタスクを処理するのではなく、  
 **外部プロセスプールでPHPクロージャを安全に並列実行** し、  
@@ -87,5 +87,5 @@ make install
 php.iniに追記
 
 ```ini
-extension = parallelx
+extension=parallelx
 ```
