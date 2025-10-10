@@ -1,8 +1,8 @@
 # ext_parallelx
 
-## 🧠 What is ext_parallelx?
+## 🧠 What is parallelx?
 
-`ext_parallelx`はPocketMine-MPのために設計された  
+`parallelx`はPocketMine-MPのために設計された  
 **マルチプロセス並列実行拡張**
 
 従来の`AsyncTask`のように、単一プロセス内でタスクを処理するのではなく、  
