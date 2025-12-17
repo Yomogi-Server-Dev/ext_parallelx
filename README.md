@@ -32,7 +32,6 @@ flowchart LR
 
 ## 🧩 Example (PocketMine-MP)
 
-ポイントは「`parallelx_init()` → 毎tick `parallelx_poll()` → `parallelx_submit_*()`」です。
 
 ```php
 <?php
