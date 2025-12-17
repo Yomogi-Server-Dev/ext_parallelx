@@ -16,7 +16,7 @@ jobs:
 
     env:
       PHP_VERSION: ${{ matrix.php }}
-      CFLAGS: "-O3 -march=x86-64 -ftree-vectorize -funroll-loops -fomit-frame-pointer -pipe -flto"
+      CFLAGS: "-march=x86-64 -ftree-vectorize -fopt-info-vec"
 
     steps:
       - uses: actions/checkout@v4
