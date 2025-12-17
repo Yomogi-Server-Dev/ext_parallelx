@@ -30,61 +30,42 @@ flowchart LR
     Pool -->|send result via pipe| A3
 ```
 
-## 🧩 Example (PocketMine-MP)
-
+## 🧩 Example
 
 ```php
-<?php
-declare(strict_types=1);
+public function onEnable(): void {
+    // optional: PHPのパス、workerscriptのパス、オートローダのパス
+    $phpCli = '/home/pmmp/pmmp/bin/php7/php';
+    $workerScript = $this->getDataFolder() . 'parallelx_worker.php';
+    $autoload = '/path/to/server/vendor/autoload.php';
+    parallelx_init(4, $phpCli, $workerScript, $autoload);
 
-use pocketmine\plugin\PluginBase;
-use pocketmine\scheduler\ClosureTask;
+    // 1tick周期でpoll
+    $this->getScheduler()->scheduleRepeatingTask(new \pocketmine\scheduler\CallbackTask(function(): void {
+        parallelx_poll();
+    }), 1);
+}
+
 use ParallelX\Helper;
 
-final class MyPlugin extends PluginBase{
-    protected function onEnable() : void{
-        // 必要なら: php実行ファイル / workerスクリプト / autoload を指定
-        $phpCli = "/path/to/php"; // 例: /home/pmmp/pmmp/bin/php8/bin/php
-        $workerScript = $this->getDataFolder() . "parallelx_worker.php";
-        $autoload = "/path/to/server/vendor/autoload.php";
-        parallelx_init(4, $phpCli, $workerScript, $autoload);
+$closure = function($n) {
+    $s = 0;
+    for ($i = 0; $i < $n; ++$i) $s += ($i % 2 ? -1 : 1);
+    return $s;
+};
 
-        // PMMPのメインスレッド側で 1tick ごとに poll
-        $this->getScheduler()->scheduleRepeatingTask(new ClosureTask(function() : void{
-            parallelx_poll();
-        }), 1);
+$desc = Helper\extract_closure_descriptor($closure);
+$token = parallelx_register($desc['source'], $desc['bound_b64']);
 
-        // (1) 実行したいクロージャを用意（use で値を閉じ込められる）
-        $mul = 7;
-        $task = function(int $n) use ($mul) : array{
-            $sum = 0;
-            for($i = 0; $i < $n; $i++){
-                $sum += (($i * $mul) % 97);
-            }
-            return ["sum" => $sum, "pid" => getmypid()];
-        };
-
-        // (2) クロージャを「ソース文字列 + use変数」に分解して token 登録
-        $desc = Helper\extract_closure_descriptor($task);
-        $token = parallelx_register($desc["source"], $desc["bound_b64"]);
-
-        // (3) token + 引数 を投げると worker が実行し、poll() 経由で callback が呼ばれる
-        parallelx_submit_token($token, [2_000_000], function(array $res) : void{
-            if(!$res["success"]){
-                $this->getLogger()->warning("parallelx failed: " . $res["data"]);
-                return;
-            }
-
-            // data は base64(serialize(['return'=>..., 'output'=>...])) で返ってくる
-            $payload = unserialize(base64_decode($res["data"]), ["allowed_classes" => false]);
-            $this->getLogger()->info("Result: " . json_encode($payload["return"]));
-        });
+parallelx_submit_token($token, [2000000], function($res) {
+    if ($res['success']) {
+        $payload = unserialize(base64_decode($res['data']));
+        $this->getLogger()->info("Result: " . var_export($payload['return'], true));
+    } else {
+        $this->getLogger()->warning("failed: " . $res['data']);
     }
+});
 
-    protected function onDisable() : void{
-        parallelx_shutdown();
-    }
-}
 ```
 
 ## 🛠 Installation
