@@ -21,7 +21,7 @@ while (!feof(STDIN)) {
     if ($data === '') continue;
     $desc = json_decode($data, true);
     if (!is_array($desc)) {
-        $out = ['task_id'=>($desc['task_id'] ?? 0), 'success'=>false, 'data'=>'invalid descriptor'];
+        $out = ['task_id'=>0, 'success'=>false, 'data'=>'invalid descriptor'];
     } else {
         $tid = $desc['task_id'] ?? 0;
         try {
